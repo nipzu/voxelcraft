@@ -1,0 +1,12 @@
+[package]
+name = "voxelcraft"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dashmap = "4.0"
+winit = "0.25"
+wgpu = "0.11"
+pollster = "0.2"
