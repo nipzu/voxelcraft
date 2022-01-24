@@ -1,36 +1,52 @@
-use pollster::block_on;
-use wgpu::{Backends, DeviceDescriptor, Instance, RequestAdapterOptions};
-use winit::{event_loop::{EventLoop, ControlFlow}, event::{Event, WindowEvent}, window::WindowBuilder};
+// #![windows_subsystem = "console"]
+
+use std::fs::File;
+
+use simplelog::{
+    ColorChoice, CombinedLogger, ConfigBuilder, LevelFilter, TermLogger, TerminalMode, WriteLogger,
+};
+
+mod program;
+use program::Program;
 
 fn main() {
-    let icon = winit::window::Icon::from_rgba(vec![0, 200, 0, 255].repeat(16*16), 16, 16);
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().with_title("Voxelcraft 0.0.1").with_window_icon(icon.ok()).build(&event_loop).unwrap();
-    let instance = Instance::new(Backends::PRIMARY);
-    let surface = unsafe { instance.create_surface(&window) };
+    init_logging();
 
-    let adapter = block_on(instance.request_adapter(&RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::HighPerformance,
-        force_fallback_adapter: false,
-        compatible_surface: Some(&surface),
-    }))
-    .unwrap();
+    let (event_loop, program) = Program::new();
+    log::info!("running program");
+    program.run(event_loop);
+}
 
-    let (device, queue) = block_on(adapter.request_device(
-        &DeviceDescriptor {
-            label: None,
-            features: Default::default(),
-            limits: Default::default(),
-        },
-        None,
-    ))
-    .unwrap();
+fn init_logging() {
+    let config = ConfigBuilder::new()
+        .set_time_format_str("%T%.6f")
+        .set_time_to_local(true)
+        .build();
 
-    event_loop.run(|event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-        match event {
-            Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => *control_flow = ControlFlow::Exit,
-            _ => (),
-        }
-    });
+    if let Ok(file) = File::create("log.txt") {
+        CombinedLogger::init(vec![
+            TermLogger::new(
+                LevelFilter::Info,
+                config.clone(),
+                TerminalMode::Mixed,
+                ColorChoice::Auto,
+            ),
+            WriteLogger::new(LevelFilter::Info, config, file),
+        ])
+        .unwrap();
+    } else {
+        TermLogger::init(
+            LevelFilter::Warn,
+            config,
+            TerminalMode::Mixed,
+            ColorChoice::Auto,
+        )
+        .unwrap();
+
+        log::warn!(
+            "unable to create log file, warnings and errors will still be displayed in the console"
+        );
+    }
+
+    log::info!("logging started")
 }

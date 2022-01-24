@@ -5,8 +5,16 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.perf_profile]
+inherits = "release"
+debug = 2
+
 [dependencies]
-dashmap = "4.0"
-winit = "0.25"
-wgpu = "0.11"
+dashmap = "5.0"
+winit = "0.26"
+wgpu = "0.12"
 pollster = "0.2"
+log = "0.4"
+simplelog = "0.11"
+bytemuck = { version = "1.7", features = ["derive"] }
+nalgebra = "0.30"
