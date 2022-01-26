@@ -41,24 +41,25 @@ fn ray_cast(origin: vec3<f32>, dir_in: vec3<f32>) -> vec4<f32> {
 
     let is_zero = -m_vec < dir_in & dir_in < m_vec;
     let dir = select(dir_in, m_vec, is_zero);
-    let dir_inv = 1.0 / dir;
+    let abs_dir_inv = abs(1.0 / dir);
     // let sky = sky_color(dir);
 
-    var d: vec3<f32> = sign(dir) * fract(-sign(dir) * origin) * dir_inv;
+    var d: vec3<f32> = abs_dir_inv * fract(-sign(dir) * origin);
     // var stack: array<i32, 32>;
     // var scale: u32 = 0u;
 
-    // for (var dist: f32 = 0.0; dist < max_dist;) {
+    loop {
         let t = min(min(d.x, d.y), d.z);
-        // let normal = step(vec3<f32>(-t), -d);
         let normal = select(vec3<f32>(0.0), vec3<f32>(1.0), d == vec3<f32>(t));
 
-        d = fma(normal, dir, d);
+        d = fma(normal, abs_dir_inv, d);
 
-        return vec4<f32>(normal.x * 0.5 + 0.5, normal.y * 0.5 + 0.5, normal.z * 0.5 + 0.5, 1.0);
-    // }
+        if (t > 20.0) {
+            return vec4<f32>(normal.x * 0.5 + 0.5, normal.y * 0.5 + 0.5, normal.z * 0.5 + 0.5, 1.0);
+        }
+    }
 
-    // return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
 }
 
 [[stage(fragment)]]

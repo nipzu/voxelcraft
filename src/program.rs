@@ -35,7 +35,7 @@ impl Program {
             .with_window_icon(icon.ok())
             .with_inner_size(PhysicalSize::new(1280_u32, 720))
             .with_min_inner_size(PhysicalSize::new(1_u32, 1))
-            .with_transparent(true)
+            .with_transparent(false)
             .with_fullscreen(
                 None, //Some(winit::window::Fullscreen::Borderless(None))
             )
