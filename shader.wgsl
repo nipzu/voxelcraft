@@ -26,6 +26,41 @@ struct CameraCanvas {
 [[group(0), binding(0)]]
 var<uniform> camera: CameraCanvas;
 
+// fn sky_color(dir: vec3<f32>) -> vec4<f32> {
+//     return vec4<f32>(0.2, 0.3, dir.y * 0.35 + 0.65, 1.0);
+// }
+
+fn ray_cast(origin: vec3<f32>, dir_in: vec3<f32>) -> vec4<f32> {
+    // constants
+    
+    // smallest positive normal number
+    // note that 1/m is a normal number
+    let m = 1.1754944e-38; 
+    let m_vec = vec3<f32>(m);
+    let max_dist = 100.0;
+
+    let is_zero = -m_vec < dir_in & dir_in < m_vec;
+    let dir = select(dir_in, m_vec, is_zero);
+    let dir_inv = 1.0 / dir;
+    // let sky = sky_color(dir);
+
+    var d: vec3<f32> = sign(dir) * fract(-sign(dir) * origin) * dir_inv;
+    // var stack: array<i32, 32>;
+    // var scale: u32 = 0u;
+
+    // for (var dist: f32 = 0.0; dist < max_dist;) {
+        let t = min(min(d.x, d.y), d.z);
+        // let normal = step(vec3<f32>(-t), -d);
+        let normal = select(vec3<f32>(0.0), vec3<f32>(1.0), d == vec3<f32>(t));
+
+        d = fma(normal, dir, d);
+
+        return vec4<f32>(normal.x * 0.5 + 0.5, normal.y * 0.5 + 0.5, normal.z * 0.5 + 0.5, 1.0);
+    // }
+
+    // return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+}
+
 [[stage(fragment)]]
 fn frag_main(
     [[location(0)]] pos: vec2<f32>
@@ -35,29 +70,5 @@ fn frag_main(
         + pos.y * camera.canvas_top_delta;
     let dir = normalize(dst);
 
-    var c = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    if (dir.y > 0.0) {
-        c = c + vec4<f32>(1.0, 0.0, 0.0, 0.0);
-    }
-    if (dir.x > 0.0) {
-        c = c + vec4<f32>(0.0, 1.0, 0.0, 0.0);
-    }
-    if (dir.z > 0.0) {
-        c = c + vec4<f32>(0.0, 0.0, 1.0, 0.0);
-    }
-    if (abs(dir.y) < 0.01) {
-        c = vec4<f32>(0.3,0.3,0.3,1.0);
-    }
-
-    return c;
-}
-
-fn intersect_cube(
-    target: vec3<f32>,
-    ray_origin: vec3<f32>,
-    dir_inv: vec3<f32>,
-) -> f32 {
-    let d = (target - ray_origin) * dir_inv;
-
-    return min(min(d.x, d.y), d.z);
+    return ray_cast(camera.origin, dir);
 }

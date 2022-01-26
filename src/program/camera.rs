@@ -9,6 +9,7 @@ pub struct Camera {
     pitch: f64,
     /// radians between 0 and 2pi
     yaw: f64,
+    pos: Vector3<f64>,
 }
 
 impl Camera {
@@ -49,31 +50,40 @@ impl Camera {
                 buffer,
                 pitch: 0.0,
                 yaw: 0.0,
+                pos: Vector3::repeat(0.5),
             },
             bind_group_layout,
         )
     }
 
-    pub fn rotate(&mut self, queue: &wgpu::Queue, mut delta: (f64, f64)) {
+    pub fn transform(&mut self, delta: Vector3<f64>) {
+        let yaw_rot = Rotation3::from_scaled_axis(self.yaw * Vector3::y());
+
+        self.pos += yaw_rot * delta;
+    } 
+
+    pub fn rotate(&mut self, mut delta: (f64, f64)) {
         delta.0 /= 1000.0;
         delta.1 /= 1000.0;
 
         self.pitch = f64::clamp(self.pitch + delta.1, -FRAC_PI_2, FRAC_PI_2);
         self.yaw = (self.yaw + delta.0) % (2.0 * PI);
+    }
 
+    pub fn update_buffer(&self, queue: &wgpu::Queue) {
         let pitch_rot = Rotation3::from_scaled_axis(self.pitch * Vector3::x());
         let yaw_rot = Rotation3::from_scaled_axis(self.yaw * Vector3::y());
         let rot = yaw_rot * pitch_rot;
 
         let dir = rot * Vector3::z();
-        let r = yaw_rot * Vector3::x() * 1280.0 / 1000.0;
-        let u = rot * Vector3::y() * 720.0 / 1000.0;
+        let r = rot * Vector3::x() * 1280.0 / 1500.0;
+        let u = rot * Vector3::y() * 720.0 / 1500.0;
 
         let data = CameraData {
             origin: Vec3F32 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
+                x: self.pos.x as f32,
+                y: self.pos.y as f32,
+                z: self.pos.z as f32,
                 pad: 0.0,
             },
             canvas_mid_delta: Vec3F32 {
@@ -95,7 +105,6 @@ impl Camera {
                 pad: 0.0,
             },
         };
-
         queue.write_buffer(&self.buffer, 0, bytemuck::bytes_of(&data));
     }
 

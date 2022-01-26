@@ -1,11 +1,17 @@
-use std::time::Instant;
-
 use winit::{
     dpi::PhysicalSize,
     event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
+
+mod camera;
+mod framecounter;
+mod controller;
+
+use camera::Camera;
+use framecounter::FrameCounter;
+use controller::CameraController;
 
 pub struct Program {
     window: Window,
@@ -15,13 +21,10 @@ pub struct Program {
     queue: wgpu::Queue,
     pipeline: wgpu::RenderPipeline,
     surface_config: wgpu::SurfaceConfiguration,
-    frametimer: Instant,
     camera: Camera,
+    fps_counter: FrameCounter,
+    controller: CameraController,
 }
-
-mod camera;
-
-use camera::Camera;
 
 impl Program {
     pub fn new() -> (EventLoop<()>, Self) {
@@ -122,6 +125,8 @@ impl Program {
         window.set_cursor_visible(false);
         window.set_cursor_grab(true).unwrap();
 
+        camera.update_buffer(&queue);
+
         (
             event_loop,
             Self {
@@ -131,18 +136,19 @@ impl Program {
                 device,
                 queue,
                 pipeline,
-                frametimer: Instant::now(),
                 surface_config: config,
                 camera,
+                fps_counter: FrameCounter::new(0.5),
+                controller: CameraController::default(),
             },
         )
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) -> ! {
-        log::info!("{:?}", self.adapter.features());
-        log::info!("{:?}", self.adapter.get_info());
-        log::info!("{:?}", self.adapter.get_downlevel_properties());
-        log::info!("{:?}", self.adapter.limits());
+        log::info!("{:#?}", self.adapter.features());
+        log::info!("{:#?}", self.adapter.get_info());
+        log::info!("{:#?}", self.adapter.get_downlevel_properties());
+        log::info!("{:#?}", self.adapter.limits());
 
         event_loop.run(move |event, _, control_flow| {
             *control_flow = ControlFlow::Wait;
@@ -159,11 +165,14 @@ impl Program {
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        // log::info!(
-        //     "rendering {:.3} fps",
-        //     1_000_000.0 / self.frametimer.elapsed().as_micros() as f64
-        // );
-        self.frametimer = Instant::now();
+        let delta = self.fps_counter.new_frame();
+        self.camera.transform(self.controller.cur_dir() * delta);
+
+        if let Some(fps) = self.fps_counter.report() {
+            log::info!(
+                "rendering at {:.3} fps", fps
+            );
+        }
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -189,6 +198,7 @@ impl Program {
             });
 
             render_pass.set_pipeline(&self.pipeline);
+            self.camera.update_buffer(&self.queue);
             render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
             render_pass.draw(0..6, 0..1);
         }
@@ -236,6 +246,10 @@ impl Program {
             {
                 *control_flow = ControlFlow::Exit
             }
+            WindowEvent::KeyboardInput { input, .. } =>
+        {
+            self.controller.handle_key_event(input);
+        }
             WindowEvent::Resized(new_size)
             | WindowEvent::ScaleFactorChanged {
                 new_inner_size: &mut new_size,
@@ -250,7 +264,7 @@ impl Program {
     fn handle_device_event(&mut self, event: DeviceEvent) {
         match event {
             DeviceEvent::MouseMotion { delta } => {
-                self.camera.rotate(&self.queue, delta);
+                self.camera.rotate(delta);
             }
             _ => (),
         }
