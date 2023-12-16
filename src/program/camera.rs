@@ -3,17 +3,16 @@ use nalgebra::{Rotation3, Vector3};
 use std::f64::consts::{FRAC_PI_2, PI};
 
 pub struct Camera {
-    bind_group: wgpu::BindGroup,
     buffer: wgpu::Buffer,
     /// radians between -pi/2 and pi/2
     pitch: f64,
     /// radians between 0 and 2pi
     yaw: f64,
-    pos: Vector3<f64>,
+    pub pos: Vector3<f64>,
 }
 
 impl Camera {
-    pub fn new(device: &wgpu::Device) -> (Self, wgpu::BindGroupLayout) {
+    pub fn new(device: &wgpu::Device) -> Self {
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("camera canvas buffer"),
             size: 16 * std::mem::size_of::<f32>() as u64,
@@ -21,46 +20,19 @@ impl Camera {
             mapped_at_creation: false,
         });
 
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("camera buffer layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
-
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("camera bind group"),
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-        });
-
-        (
-            Self {
-                bind_group,
-                buffer,
-                pitch: 0.0,
-                yaw: 0.0,
-                pos: Vector3::repeat(0.5),
-            },
-            bind_group_layout,
-        )
+        Self {
+            buffer,
+            pitch: 0.0,
+            yaw: 0.0,
+            pos: Vector3::repeat(0.3),
+        }
     }
 
     pub fn transform(&mut self, delta: Vector3<f64>) {
         let yaw_rot = Rotation3::from_scaled_axis(self.yaw * Vector3::y());
 
         self.pos += yaw_rot * delta;
-    } 
+    }
 
     pub fn rotate(&mut self, mut delta: (f64, f64)) {
         delta.0 /= 1000.0;
@@ -108,8 +80,8 @@ impl Camera {
         queue.write_buffer(&self.buffer, 0, bytemuck::bytes_of(&data));
     }
 
-    pub fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
+    pub fn buffer(&self) -> &wgpu::Buffer {
+        &self.buffer
     }
 }
 

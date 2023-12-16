@@ -25,7 +25,8 @@ impl FrameCounter {
         let frame_delta = (now - self.last_frame_instant).as_secs_f64();
 
         if elapsed_since_last_report >= self.report_interval {
-            self.pending_report = Some(self.frames_since_last_report as f64 / elapsed_since_last_report);
+            self.pending_report =
+                Some(self.frames_since_last_report as f64 / elapsed_since_last_report);
             self.last_report_instant = now;
             self.frames_since_last_report = 0;
         }

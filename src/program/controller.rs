@@ -1,5 +1,8 @@
 use nalgebra::Vector3;
-use winit::event::{KeyboardInput, VirtualKeyCode, ElementState};
+use winit::{
+    event::{ElementState, KeyEvent},
+    keyboard::{Key, NamedKey},
+};
 
 #[derive(Default)]
 pub struct CameraController {
@@ -33,19 +36,29 @@ impl CameraController {
             dir -= Vector3::y();
         }
 
-        if dir.norm() < 0.1 { dir } else { dir.normalize() }
+        if dir.norm() < 0.1 {
+            dir
+        } else {
+            dir.normalize()
+        }
     }
 
-    pub fn handle_key_event(&mut self, event: KeyboardInput) {
-        match event.virtual_keycode {
-            Some(VirtualKeyCode::A) => self.is_left_pressed = event.state == ElementState::Pressed,
-            Some(VirtualKeyCode::D) => self.is_right_pressed = event.state == ElementState::Pressed,
-            Some(VirtualKeyCode::Space) => self.is_up_pressed = event.state == ElementState::Pressed,
-            Some(VirtualKeyCode::LShift) => self.is_down_pressed = event.state == ElementState::Pressed,
-            Some(VirtualKeyCode::W) => self.is_forward_pressed = event.state == ElementState::Pressed,
-            Some(VirtualKeyCode::S) => self.is_backward_pressed = event.state == ElementState::Pressed,
+    pub fn handle_key_event(&mut self, event: KeyEvent) {
+        match event.logical_key {
+            Key::Character(c) => match c.as_str() {
+                "a" => self.is_left_pressed = event.state == ElementState::Pressed,
+                "d" => self.is_right_pressed = event.state == ElementState::Pressed,
+                "w" => self.is_forward_pressed = event.state == ElementState::Pressed,
+                "s" => self.is_backward_pressed = event.state == ElementState::Pressed,
+                _ => (),
+            },
+            Key::Named(NamedKey::Space) => {
+                self.is_up_pressed = event.state == ElementState::Pressed
+            }
+            Key::Named(NamedKey::Shift) => {
+                self.is_down_pressed = event.state == ElementState::Pressed
+            }
             _ => (),
         }
     }
 }
-

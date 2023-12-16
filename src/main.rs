@@ -19,8 +19,8 @@ fn main() {
 
 fn init_logging() {
     let config = ConfigBuilder::new()
-        .set_time_format_str("%T%.6f")
-        .set_time_to_local(true)
+        //.set_time_format_custom("%T%.6f")
+        //.set_time_to_local(true)
         .build();
 
     if let Ok(file) = File::create("log.txt") {
