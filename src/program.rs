@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use winit::{
     dpi::PhysicalSize,
     event::{DeviceEvent, ElementState, Event, WindowEvent},
@@ -40,12 +38,15 @@ impl Program {
         let window = WindowBuilder::new()
             .with_title("Voxelcraft 0.0.1")
             .with_window_icon(icon.ok())
-            .with_inner_size(PhysicalSize::new(1280_u32, 720))
+            // .with_inner_size(PhysicalSize::new(640_u32, 360))
+            // .with_inner_size(PhysicalSize::new(1280_u32, 720))
             // .with_inner_size(PhysicalSize::new(1920_u32, 1080))
+            .with_inner_size(PhysicalSize::new(2560_u32, 1440))
             .with_min_inner_size(PhysicalSize::new(1_u32, 1))
             .with_transparent(false)
             .with_fullscreen(
-                None, //Some(winit::window::Fullscreen::Borderless(None))
+                None, 
+                // Some(winit::window::Fullscreen::Borderless(None)),
             )
             .with_resizable(false)
             .build(&event_loop)
@@ -65,11 +66,16 @@ impl Program {
         }))
         .unwrap();
 
+        let mut limits: wgpu::Limits = Default::default();
+        // 1 GiB
+        limits.max_buffer_size = 1 << 30;
+        limits.max_storage_buffer_binding_size = 1 << 30;
+
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
                 features: Default::default(),
-                limits: Default::default(),
+                limits,
             },
             None,
         ))
@@ -82,8 +88,7 @@ impl Program {
                 window.inner_size().height,
             )
             .expect("could not get surface default config");
-        // config.present_mode = wgpu::PresentMode::AutoNoVsync;
-        
+        config.present_mode = wgpu::PresentMode::AutoNoVsync;
 
         surface.configure(&device, &config);
 
@@ -94,15 +99,7 @@ impl Program {
             source: wgpu::ShaderSource::Wgsl(shader_text.into()),
         });
 
-        // TODO: stride and align stuff
-        // let voxel_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        //     label: Some("voxel buffer descriptor"),
-        //     size: 8 * size_of::<u32>() as u64 * 512,
-        //     mapped_at_creation: false,
-        //     usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        // });
-
-        let voxel_buffer = VoxelBuffer::new(&device);
+        let mut voxel_buffer = VoxelBuffer::new(&device);
 
         let camera = Camera::new(&device);
 

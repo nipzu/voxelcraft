@@ -22,8 +22,8 @@ impl Camera {
 
         Self {
             buffer,
-            pitch: 0.0,
-            yaw: 0.0,
+            pitch: -std::f64::consts::FRAC_PI_4,// 0.0,
+            yaw: std::f64::consts::FRAC_PI_4,// 0.0,
             pos: Vector3::repeat(0.3),
         }
     }

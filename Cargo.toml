@@ -18,3 +18,4 @@ log = "0.4"
 simplelog = "0.12"
 bytemuck = { version = "1.7", features = ["derive"] }
 nalgebra = "0.32"
+rand = "0.8.5"

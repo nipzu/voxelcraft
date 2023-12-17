@@ -1,4 +1,4 @@
-// #![windows_subsystem = "console"]
+#![windows_subsystem = "console"]
 
 use std::fs::File;
 
