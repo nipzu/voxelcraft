@@ -39,9 +39,9 @@ impl Program {
             .with_title("Voxelcraft 0.0.1")
             .with_window_icon(icon.ok())
             // .with_inner_size(PhysicalSize::new(640_u32, 360))
-            // .with_inner_size(PhysicalSize::new(1280_u32, 720))
+            .with_inner_size(PhysicalSize::new(1280_u32, 720))
             // .with_inner_size(PhysicalSize::new(1920_u32, 1080))
-            .with_inner_size(PhysicalSize::new(2560_u32, 1440))
+            // .with_inner_size(PhysicalSize::new(2560_u32, 1440))
             .with_min_inner_size(PhysicalSize::new(1_u32, 1))
             .with_transparent(false)
             .with_fullscreen(

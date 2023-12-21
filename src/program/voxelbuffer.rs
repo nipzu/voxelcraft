@@ -101,16 +101,24 @@ impl VoxelBuffer {
             uploaded: false,
         };
 
-        
+
         use rand::{Rng, SeedableRng};
         let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
-        for _ in 0..1_000 {
-            let x = (rng.gen_range(0..=0b1111_1111) << 23) + (0b0100_0000 << 24);
-            let y = (rng.gen_range(0..=0b1111_1111) << 23) + (0b0100_0000 << 24);
-            let z = (rng.gen_range(0..=0b1111_1111) << 23) + (0b0100_0000 << 24);
-            s.add_voxel(Vector3::new(x,y,z), 6);
+        let k = 11;
+        for _ in 0..5_000 {
+            let x = rng.gen_range((0b01 << k)..(0b11 << k));
+            let y = rng.gen_range((0b01 << k)..(0b11 << k));
+            let z = rng.gen_range((0b01 << k)..(0b11 << k));
+            s.add_voxel(Vector3::new(x << (30 - k),y << (30 - k),z << (30 - k)), 8);
         }
-
+        // use rand::{Rng, SeedableRng};
+        // let mut rng = rand::rngs::StdRng::from_seed([0; 32]);
+        // for _ in 0..1_000 {
+        //     let x = (rng.gen_range(0..=0b1111_1111) << 23) + (0b0100_0000 << 24);
+        //     let y = (rng.gen_range(0..=0b1111_1111) << 23) + (0b0100_0000 << 24);
+        //     let z = (rng.gen_range(0..=0b1111_1111) << 23) + (0b0100_0000 << 24);
+        //     s.add_voxel(Vector3::new(x,y,z), 6);
+        // }
 
         let k = 11;
         for x in (0b01 << k)..(0b11 << k) {

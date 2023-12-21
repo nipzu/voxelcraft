@@ -43,6 +43,7 @@ fn ray_cast(origin: vec3<f32>, dir_in: vec3<f32>) -> vec4<f32> {
     // constants
 
     var total_dist = 0.0;
+    var dist_mul = 1.0;
 
     // smallest positive normal number
     // note that 1/m is a normal number
@@ -103,10 +104,15 @@ fn ray_cast(origin: vec3<f32>, dir_in: vec3<f32>) -> vec4<f32> {
         // }
         cur = select(fma(vec3<f32>(0.5), cur, subnode_offset), cur, ascensions_handled);
 
-        if ((cur_subnode_val & 1u) == 1u && ascensions_handled) {
+        if ((cur_subnode_val & 1u) == 1u & ascensions_handled) {
             // subnode not void
 
+            // let max_scale = u32(15.3 - log2(100.0*total_dist + 1.0));
+            // let max_scale2 = u32(countLeadingZeros(i) - 14);
+            // let max_scale3 = min(max_scale, max_scale2);
+            // let max_scale = 100;
             if ((cur_subnode_val & 2u) == 0u) {
+            // if ((cur_subnode_val & 2u) == 0u & scale < max_scale3) {
                 // did not hit a leaf, descend
                 stack[scale] += cur_subnode_idx;
 
@@ -116,6 +122,7 @@ fn ray_cast(origin: vec3<f32>, dir_in: vec3<f32>) -> vec4<f32> {
                 cur *= 2.0;
                 // cur = fma(vec3<f32>(2.0), cur, -2.0 * sub_offset);
                 scale += 1u;
+                dist_mul *= 0.5;
 
                 let tmp_idx = select(vec3<u32>(0u), vec3<u32>(1u, 2u, 4u), cur > vec3<f32>(1.0));
                 cur_subnode_idx = tmp_idx.x + tmp_idx.y + tmp_idx.z;
@@ -137,13 +144,13 @@ fn ray_cast(origin: vec3<f32>, dir_in: vec3<f32>) -> vec4<f32> {
             let t = min(min(d.x, d.y), d.z);
             let adv_axis = (d == vec3<f32>(t));
 
-            let neg = any((dir < vec3<f32>(0.0)) && adv_axis);
+            let neg = any((dir < vec3<f32>(0.0)) & adv_axis);
 
             let tmp_idx_offset = select(vec3<u32>(0u), vec3<u32>(1u, 2u, 4u), adv_axis);
             let idx_offset = tmp_idx_offset.x + tmp_idx_offset.y + tmp_idx_offset.z;
 
             cur = fma(vec3<f32>(t), dir, cur);
-            // total_dist += t / exp2(f32(scale));
+            total_dist = fma(t, dist_mul, total_dist);
 
             if ((cur_subnode_idx & idx_offset) != select(0u, idx_offset, neg)) {
                 // ascend, change coordinates
@@ -153,20 +160,15 @@ fn ray_cast(origin: vec3<f32>, dir_in: vec3<f32>) -> vec4<f32> {
                 }
 
                 scale -= 1u;
+                dist_mul *= 2.0;
                 let stack_top = stack[scale];
                 cur_ocnode = voxels[stack_top >> 3u];
                 cur_subnode_idx = stack_top & 7u;
-                stack[scale] = stack_top - cur_subnode_idx;
+                stack[scale] = stack_top & ~7u;
 
                 ascensions_handled = false;
             } else {
-
-                // TODO: idk man use signed or smth
-                cur_subnode_idx = select(
-                    cur_subnode_idx + idx_offset,
-                    cur_subnode_idx - idx_offset,
-                    neg
-                );
+                cur_subnode_idx ^= idx_offset;
             }
         }
     }
