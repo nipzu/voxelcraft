@@ -1,9 +1,9 @@
 use winit::{
     dpi::PhysicalSize,
     event::{DeviceEvent, ElementState, Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
-    window::{Window, WindowBuilder},
+    window::Window,
 };
 
 mod camera;
@@ -17,9 +17,9 @@ use framecounter::FrameCounter;
 
 use self::voxelbuffer::VoxelBuffer;
 
-pub struct Program {
-    window: Window,
-    surface: wgpu::Surface,
+pub struct Program<'a> {
+    window: &'a Window,
+    surface: wgpu::Surface<'a>,
     adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -31,33 +31,13 @@ pub struct Program {
     controller: CameraController,
 }
 
-impl Program {
-    pub fn new() -> (EventLoop<()>, Self) {
-        let icon = winit::window::Icon::from_rgba([0, 150, 0, 255].repeat(16 * 16), 16, 16);
-        let event_loop = EventLoop::new().expect("could not create event loop");
-        let window = WindowBuilder::new()
-            .with_title("Voxelcraft 0.0.1")
-            .with_window_icon(icon.ok())
-            // .with_inner_size(PhysicalSize::new(640_u32, 360))
-            .with_inner_size(PhysicalSize::new(1280_u32, 720))
-            // .with_inner_size(PhysicalSize::new(1920_u32, 1080))
-            // .with_inner_size(PhysicalSize::new(2560_u32, 1440))
-            .with_min_inner_size(PhysicalSize::new(1_u32, 1))
-            .with_transparent(false)
-            .with_fullscreen(
-                None, 
-                // Some(winit::window::Fullscreen::Borderless(None)),
-            )
-            .with_resizable(false)
-            .build(&event_loop)
-            .unwrap();
+impl<'a> Program<'a> {
+    pub fn new(window: &'a Window) -> Self {
         // TODO: only VULKAN
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
-        let surface = unsafe {
-            instance
-                .create_surface(&window)
-                .expect("could not create surface")
-        };
+        let surface = instance
+            .create_surface(window)
+            .expect("could not create surface");
 
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
@@ -67,15 +47,17 @@ impl Program {
         .unwrap();
 
         let mut limits: wgpu::Limits = Default::default();
-        // 1 GiB
-        limits.max_buffer_size = 1 << 30;
-        limits.max_storage_buffer_binding_size = 1 << 30;
+        // 0.5 GiB
+        limits.max_buffer_size = 1 << 29;
+        limits.max_storage_buffer_binding_size = 1 << 29;
 
         let (device, queue) = pollster::block_on(adapter.request_device(
             &wgpu::DeviceDescriptor {
                 label: None,
-                features: Default::default(),
-                limits,
+                required_features: Default::default(),
+                required_limits: limits,
+                // TODO: which is more important
+                memory_hints: wgpu::MemoryHints::Performance,
             },
             None,
         ))
@@ -153,10 +135,12 @@ impl Program {
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("render pipeline"),
             layout: Some(&pipeline_layout),
+            cache: None,
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vert_main",
                 buffers: &[],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
@@ -176,6 +160,7 @@ impl Program {
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "frag_main",
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
                     blend: Some(wgpu::BlendState::REPLACE),
@@ -195,22 +180,19 @@ impl Program {
         // TODO: only when needed
         voxel_buffer.update_buffer(&queue);
 
-        (
-            event_loop,
-            Self {
-                bind_group,
-                window,
-                surface,
-                adapter,
-                device,
-                queue,
-                pipeline,
-                surface_config: config,
-                camera,
-                fps_counter: FrameCounter::new(0.5),
-                controller: CameraController::default(),
-            },
-        )
+        Self {
+            bind_group,
+            window,
+            surface,
+            adapter,
+            device,
+            queue,
+            pipeline,
+            surface_config: config,
+            camera,
+            fps_counter: FrameCounter::new(0.5),
+            controller: CameraController::default(),
+        }
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) {
@@ -241,7 +223,12 @@ impl Program {
 
         if let Some(fps) = self.fps_counter.report() {
             let pos = self.camera.pos;
-            log::info!("fps: {fps:.1}, camera pos: {:.3} {:.3} {:.3}", pos.x, pos.y, pos.z);
+            log::info!(
+                "fps: {fps:.1}, camera pos: {:.3} {:.3} {:.3}",
+                pos.x,
+                pos.y,
+                pos.z
+            );
         }
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -280,7 +267,7 @@ impl Program {
         Ok(())
     }
 
-    fn handle_event(&mut self, event: Event<()>, control_flow: &EventLoopWindowTarget<()>) {
+    fn handle_event(&mut self, event: Event<()>, control_flow: &ActiveEventLoop) {
         control_flow.set_control_flow(ControlFlow::Poll);
         match event {
             Event::WindowEvent { event, window_id } if window_id == self.window.id() => {
@@ -300,11 +287,7 @@ impl Program {
         }
     }
 
-    fn handle_window_event(
-        &mut self,
-        event: WindowEvent,
-        control_flow: &EventLoopWindowTarget<()>,
-    ) {
+    fn handle_window_event(&mut self, event: WindowEvent, control_flow: &ActiveEventLoop) {
         match event {
             WindowEvent::RedrawRequested => {
                 // log::info!("redraw");
